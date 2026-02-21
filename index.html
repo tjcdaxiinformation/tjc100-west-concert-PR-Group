@@ -21,9 +21,17 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, serverTimestamp, query, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 安全初始化：檢查環境變數是否存在，避免在 GitHub Pages 執行時崩潰
+        // =============================================================
+        // 🛠️ 部署前必讀：Firebase 雲端配置
+        // =============================================================
+        // 1. 如果是在 Canvas 預覽環境中，系統會自動填入設定。
+        // 2. 如果部署到 GitHub Pages，請至 Firebase Console 建立專案，
+        //    並將您的 webConfig 貼在下方的 {} 中。
+        // =============================================================
+        const manualConfig = null; // 部署後可改為 { apiKey: "...", ... }
+
         try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+            const firebaseConfig = manualConfig || (typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null);
             
             if (firebaseConfig) {
                 window.fbApp = initializeApp(firebaseConfig);
@@ -31,7 +39,7 @@
                 window.fbDb = getFirestore(window.fbApp);
                 window.fbEnabled = true;
             } else {
-                console.warn("Firebase 配置未定義，雲端存檔功能將無法運作。");
+                console.warn("Firebase 未配置，目前僅為視覺預覽模式。");
                 window.fbEnabled = false;
             }
         } catch (e) {
@@ -39,7 +47,7 @@
             window.fbEnabled = false;
         }
 
-        // 導出功能函數
+        // 導出功能函數供 React 組件使用
         window.fbAddDoc = addDoc;
         window.fbCollection = collection;
         window.fbTimestamp = serverTimestamp;
@@ -91,7 +99,7 @@
         const { useState, useEffect, useRef } = React;
 
         /**
-         * 修正後的圖示組件
+         * 圖示組件：修正 React removeChild 衝突
          */
         const Icon = ({ name, className }) => {
             const containerRef = useRef(null);
@@ -126,7 +134,7 @@
                 services: []
             });
 
-            // 初始化認證
+            // 初始化與認證監聽
             useEffect(() => {
                 setIsVisible(true);
                 if (!window.fbEnabled) return;
@@ -149,7 +157,7 @@
                 return () => unsubscribe();
             }, []);
 
-            // 監聽管理後台資料
+            // 監聽後台名單 (僅在 Admin 視圖且 Firebase 啟用時)
             useEffect(() => {
                 if (view === 'admin' && window.fbEnabled) {
                     const collectionRef = window.fbCollection(
@@ -172,7 +180,7 @@
                             return timeB - timeA;
                         }));
                     }, (error) => {
-                        console.error("監聽失敗", error);
+                        console.error("資料讀取失敗", error);
                     });
                     return () => unsubscribe();
                 }
@@ -196,12 +204,15 @@
                 e.preventDefault();
                 
                 if (!window.fbEnabled) {
-                    alert("目前處於預覽模式，雲端儲存功能未啟用。");
+                    alert("⚠️ 目前為展示模式，資料將不會儲存至雲端。若要正式啟用，請在程式碼中填入 Firebase 配置。");
                     setView('success');
                     return;
                 }
 
-                if (!user) return;
+                if (!user) {
+                    alert("正在準備安全連接中，請稍候再試。");
+                    return;
+                }
                 
                 setIsSubmitting(true);
                 try {
@@ -223,8 +234,8 @@
                     setView('success');
                     window.scrollTo(0, 0);
                 } catch (error) {
-                    console.error("存檔錯誤: ", error);
-                    alert("送出失敗，請檢查網路連線或聯繫組長。");
+                    console.error("提交失敗:", error);
+                    alert("儲存資料時發生錯誤，請聯絡管理員。");
                 } finally {
                     setIsSubmitting(false);
                 }
@@ -232,42 +243,45 @@
 
             const AdminPage = () => (
                 <div className="w-full max-w-6xl mx-auto animate-fade-up">
-                    <div className="flex justify-between items-center mb-10">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-10">
                         <button onClick={() => setView('form')} className="flex items-center gap-2 text-amber-400 hover:text-amber-300 font-bold">
-                            <Icon name="arrow-left" className="w-5 h-5" /> 返回報名頁面
+                            <Icon name="arrow-left" className="w-5 h-5" /> 返回報名首頁
                         </button>
-                        <h2 className="text-2xl font-bold text-amber-200">服事報名名單管理</h2>
+                        <h2 className="text-2xl font-bold text-amber-200 tracking-tight">服事同靈名單管理</h2>
                     </div>
                     <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-white/10">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-white/5 text-amber-400 font-bold border-b border-white/10">
                                     <tr>
-                                        <th className="px-6 py-4">姓名</th>
-                                        <th className="px-6 py-4">教會</th>
-                                        <th className="px-6 py-4">事奉項目</th>
-                                        <th className="px-6 py-4">聯絡 Email</th>
-                                        <th className="px-6 py-4">報名時間</th>
+                                        <th className="px-6 py-4 text-center">姓名 / 年齡</th>
+                                        <th className="px-6 py-4 text-center">所屬教會</th>
+                                        <th className="px-6 py-4 text-center">事奉項目</th>
+                                        <th className="px-6 py-4 text-center">聯絡方式</th>
+                                        <th className="px-6 py-4 text-center">登記時間</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5">
+                                <tbody className="divide-y divide-white/5 text-center">
                                     {registrations.length > 0 ? registrations.map((reg) => (
                                         <tr key={reg.id} className="hover:bg-white/5 transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap text-white font-medium">{reg.name} ({reg.age}歲)</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-slate-300">{reg.church}</td>
-                                            <td className="px-6 py-4 text-slate-400">{reg.services?.join('、')}</td>
-                                            <td className="px-6 py-4 text-slate-300 font-mono">{reg.email}</td>
+                                            <td className="px-6 py-4 text-slate-400">{reg.services?.join('、') || '未填'}</td>
+                                            <td className="px-6 py-4 text-slate-300 font-mono text-xs">{reg.email}</td>
                                             <td className="px-6 py-4 text-slate-500 text-xs">
-                                                {reg.submittedAt ? new Date(reg.submittedAt.seconds * 1000).toLocaleString() : '讀取中...'}
+                                                {reg.submittedAt ? new Date(reg.submittedAt.seconds * 1000).toLocaleString() : '處理中...'}
                                             </td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-500 italic">目前尚無報名資料（或儲存功能未啟用）</td></tr>
+                                        <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-500 italic font-light tracking-widest">目前尚無登記資料</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                    <p className="text-center text-slate-600 text-[10px] mt-6 tracking-widest uppercase">
+                        Total: {registrations.length} Volunteers Recorded
+                    </p>
                 </div>
             );
 
@@ -298,7 +312,7 @@
 
             return (
                 <div className="min-h-screen relative flex flex-col items-center py-12 px-6">
-                    <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10 text-center">
+                    <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
                         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
                         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-600/10 blur-[120px] rounded-full"></div>
                     </div>
@@ -322,18 +336,18 @@
 
                             <form onSubmit={handleSubmit} className="glass-panel rounded-[2.5rem] p-8 md:p-12 shadow-2xl space-y-10">
                                 <div className="space-y-6">
-                                    <div className="flex items-center gap-2 text-amber-400 mb-6 border-l-4 border-amber-500 pl-4 text-center">
-                                        <h2 className="text-xl font-bold tracking-widest uppercase italic text-center">Personal Info ｜ 基本資料</h2>
+                                    <div className="flex items-center gap-2 text-amber-400 mb-6 border-l-4 border-amber-500 pl-4">
+                                        <h2 className="text-xl font-bold tracking-widest uppercase italic">Personal Info ｜ 基本資料</h2>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
                                                 <Icon name="user" className="w-4 h-4" /> 姓名
                                             </label>
-                                            <input required type="text" placeholder="請輸入您的姓名" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 text-white" />
+                                            <input required type="text" placeholder="請輸入姓名" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 text-white" />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
                                                 <Icon name="calendar" className="w-4 h-4" /> 年齡
                                             </label>
                                             <input required type="number" placeholder="您的年齡" value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 text-white" />
@@ -341,13 +355,13 @@
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
                                                 <Icon name="church" className="w-4 h-4" /> 所屬教會
                                             </label>
                                             <input required type="text" placeholder="例如：西門教會" value={formData.church} onChange={(e) => setFormData({...formData, church: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 text-white" />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
                                                 <Icon name="mail" className="w-4 h-4" /> 電子郵件 Email
                                             </label>
                                             <input required type="email" placeholder="example@gmail.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 text-white" />
@@ -356,13 +370,13 @@
                                 </div>
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 text-amber-400 mb-6 border-l-4 border-amber-500 pl-4">
-                                        <h2 className="text-xl font-bold tracking-widest uppercase italic text-white text-center">Experience ｜ 學經歷與專長</h2>
+                                        <h2 className="text-xl font-bold tracking-widest uppercase italic">Experience ｜ 學經歷與專長</h2>
                                     </div>
-                                    <textarea required rows="5" value={formData.experience} onChange={(e) => setFormData({...formData, experience: e.target.value})} placeholder="請分享您的學經歷或專長工具..." className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-6 py-5 focus:outline-none focus:border-amber-500/50 text-white resize-none"></textarea>
+                                    <textarea required rows="5" value={formData.experience} onChange={(e) => setFormData({...formData, experience: e.target.value})} placeholder="請分享您的學經歷、專長工具或作品連結..." className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-6 py-5 focus:outline-none focus:border-amber-500/50 text-white resize-none"></textarea>
                                 </div>
                                 <div className="space-y-6">
                                     <div className="flex items-center gap-2 text-amber-400 mb-4 border-l-4 border-amber-500 pl-4">
-                                        <h2 className="text-xl font-bold tracking-widest uppercase italic text-white text-center">Service ｜ 事奉項目</h2>
+                                        <h2 className="text-xl font-bold tracking-widest uppercase italic">Service ｜ 事奉項目</h2>
                                     </div>
                                     <div className="grid grid-cols-1 gap-4">
                                         {serviceOptions.map((option, idx) => (
@@ -375,8 +389,8 @@
                                         ))}
                                     </div>
                                 </div>
-                                <button type="submit" disabled={isSubmitting} className="w-full py-5 bg-amber-500 text-slate-950 font-black rounded-2xl hover:scale-[1.01] transition-all disabled:opacity-50">
-                                    {isSubmitting ? "傳送中..." : "確認送出登記"}
+                                <button type="submit" disabled={isSubmitting} className="w-full py-5 bg-amber-500 text-slate-950 font-black rounded-2xl hover:scale-[1.01] transition-all disabled:opacity-50 flex items-center justify-center gap-3">
+                                    {isSubmitting ? <span className="flex items-center gap-2">傳送中... <span className="loading-spinner"></span></span> : "確認送出登記"}
                                 </button>
                             </form>
                         </div>
@@ -384,15 +398,25 @@
 
                     <footer className="mt-20 pt-12 border-t border-white/10 w-full text-center">
                         <div className="mb-10 text-center">
-                            <p className="text-amber-200 font-bold text-xl mb-2 text-center">宣傳公關組 組長</p>
-                            <div className="inline-flex flex-col items-center px-10 py-4 rounded-3xl bg-white/5 text-center">
+                            <p className="text-amber-200 font-bold text-xl mb-2 text-center tracking-[0.2em]">宣傳公關組 組長</p>
+                            <div className="inline-flex flex-col items-center px-10 py-4 rounded-3xl bg-white/5 text-center shadow-inner">
                                 <p className="text-white font-black text-2xl text-center">王鴻志</p>
-                                <p className="text-slate-500 text-sm mt-1 uppercase text-center tracking-widest text-center">Daxi Church Information Section</p>
+                                <p className="text-slate-500 text-[10px] mt-1 uppercase text-center tracking-[0.3em]">Daxi Church Information Section</p>
                             </div>
                         </div>
-                        <div className="flex flex-col items-center gap-2 mt-16 text-center">
-                            <p className="text-slate-800 text-[10px] tracking-[0.3em] uppercase font-bold text-center">© 2024 True Jesus Church West District Mission.</p>
-                            <button onClick={() => setView('admin')} className="text-slate-800/30 hover:text-amber-500/50 text-[10px] mt-2 text-center">管理入口</button>
+                        <div className="flex flex-col items-center gap-8 mt-12">
+                            <a href="https://line.me/ti/p/~bless.true" target="_blank" className="group relative inline-flex items-center gap-4 px-12 py-4 bg-transparent overflow-hidden rounded-full border border-amber-400/50 hover:border-amber-400 transition-all duration-300">
+                                <div className="absolute inset-0 bg-amber-400 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                                <span className="relative flex items-center gap-3 text-amber-400 group-hover:text-slate-900 font-black text-lg tracking-[0.2em] transition-colors">
+                                    <Icon name="message-circle" className="w-6 h-6" /> LINE 聯繫組長
+                                </span>
+                            </a>
+                            <p className="text-slate-800 text-[10px] tracking-[0.4em] uppercase font-bold text-center">
+                                © 2024 True Jesus Church West District Mission.
+                            </p>
+                            <button onClick={() => setView('admin')} className="text-slate-900/50 hover:text-amber-500/50 text-[10px] mt-2 transition-colors">
+                                Admin Dashboard
+                            </button>
                         </div>
                     </footer>
                 </div>
