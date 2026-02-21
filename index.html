@@ -26,6 +26,14 @@
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        input:focus, textarea:focus {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+        }
+        /* 自定義捲軸 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #030712; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #fbbf24; }
     </style>
 </head>
 <body class="bg-navy-dark text-slate-200 font-sans selection:bg-amber-500/30">
@@ -34,7 +42,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // 圖示組件封裝
+        // 圖示組件
         const Icon = ({ name, className }) => {
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
@@ -43,23 +51,74 @@
         };
 
         const App = () => {
+            const [view, setView] = useState('form'); // 'form' 或 'success'
             const [isVisible, setIsVisible] = useState(false);
+            const [formData, setFormData] = useState({
+                name: '',
+                age: '',
+                church: '',
+                email: '',
+                experience: '',
+                services: []
+            });
 
             useEffect(() => {
                 setIsVisible(true);
             }, []);
 
+            const serviceOptions = [
+                "影像紀錄（短影片製作/歷史推介）",
+                "社群推廣（文案編輯/社群經營）",
+                "視覺設計（海報文宣/主視覺）",
+                "公關文宣（新聞稿/外部聯繫）"
+            ];
+
+            const handleCheckbox = (option) => {
+                const newServices = formData.services.includes(option)
+                    ? formData.services.filter(s => s !== option)
+                    : [...formData.services, option];
+                setFormData({ ...formData, services: newServices });
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                // 模擬送出成功
+                setView('success');
+                window.scrollTo(0, 0);
+            };
+
+            if (view === 'success') {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-6 animate-fade-up">
+                        <div className="max-w-md w-full glass-panel p-10 rounded-[2.5rem] text-center shadow-2xl">
+                            <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Icon name="check-circle" className="w-10 h-10 text-amber-400" />
+                            </div>
+                            <h2 className="text-3xl font-bold mb-4 text-amber-200 tracking-tight">哈利路亞！</h2>
+                            <p className="text-slate-400 mb-8 leading-relaxed text-lg">
+                                「我在這裡，請差遣我。」<br />
+                                您的服事意願已成功送出，宣傳公關組將儘速與您聯繫。
+                            </p>
+                            <button 
+                                onClick={() => setView('form')}
+                                className="px-8 py-3 rounded-full bg-amber-500 text-slate-900 font-bold hover:bg-amber-400 transition-all flex items-center gap-2 mx-auto"
+                            >
+                                <Icon name="arrow-left" className="w-4 h-4" /> 返回修改資料
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
                 <div className="min-h-screen relative flex flex-col items-center py-12 px-6">
-                    {/* 全域動態背景 */}
+                    {/* 背景特效 */}
                     <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
                         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
                         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-600/10 blur-[120px] rounded-full"></div>
-                        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
                     </div>
 
                     <div className="max-w-4xl w-full animate-fade-up">
-                        {/* 頁首標題 */}
                         <header className="text-center mb-12">
                             <div className="inline-block p-4 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 shadow-2xl mb-6">
                                 <Icon name="music" className="w-8 h-8 text-slate-900" />
@@ -70,54 +129,147 @@
                             </h1>
                             <div className="flex flex-col items-center gap-1">
                                 <p className="text-slate-400 text-lg">真耶穌教會傳教百年西區音樂會籌備會</p>
-                                <p className="text-amber-500/90 font-bold tracking-widest text-sm">宣傳公關組 ｜ PR Group</p>
+                                <p className="text-amber-500/90 font-bold tracking-widest text-sm uppercase">Public Relations & Publicity Group</p>
                             </div>
                             <div className="w-24 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent mx-auto mt-8 opacity-50"></div>
                         </header>
 
-                        {/* 主要表單容器 */}
-                        <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-2xl">
-                            <div className="bg-white/5 p-2 md:p-4">
-                                {/* 💡 [關鍵修改] 請將下方的 src 網址替換成您從 Google 表單「傳送 > <>」處複製的連結 */}
-                                <iframe 
-                                    src="https://docs.google.com/forms/d/e/1FAIpQLSfqZFb_WsCGCta6levdJ9ClAVQ9K0cj9MPqiVWZoKt6pxfZCQ/viewform?embedded=true" 
-                                    width="100%" 
-                                    height="1200" 
-                                    frameBorder="0" 
-                                    marginHeight="0" 
-                                    marginWidth="0"
-                                    className="rounded-2xl bg-white w-full"
-                                >
-                                    載入中…
-                                </iframe>
+                        <form onSubmit={handleSubmit} className="glass-panel rounded-[2.5rem] p-8 md:p-12 shadow-2xl space-y-10">
+                            {/* 基本資料區 */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-2 text-amber-400 mb-6 border-l-4 border-amber-500 pl-4">
+                                    <h2 className="text-xl font-bold tracking-widest uppercase italic">Personal Info ｜ 基本資料</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <Icon name="user" className="w-4 h-4" /> 姓名
+                                        </label>
+                                        <input 
+                                            required type="text" placeholder="請輸入您的姓名"
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <Icon name="calendar" className="w-4 h-4" /> 年齡
+                                        </label>
+                                        <input 
+                                            required type="number" placeholder="您的年齡"
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <Icon name="church" className="w-4 h-4" /> 所屬教會
+                                        </label>
+                                        <input 
+                                            required type="text" placeholder="例如：西門教會"
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <Icon name="mail" className="w-4 h-4" /> 電子郵件 Email
+                                        </label>
+                                        <input 
+                                            required type="email" placeholder="example@gmail.com"
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* 頁尾資訊 */}
+                            {/* 學經歷區 */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 text-amber-400 mb-6 border-l-4 border-amber-500 pl-4">
+                                    <h2 className="text-xl font-bold tracking-widest uppercase italic">Experience ｜ 學經歷與專長</h2>
+                                </div>
+                                <textarea 
+                                    required rows="5"
+                                    placeholder="請分享您的學經歷、曾參與過的作品，或熟悉的軟體工具 (如：PR, AE, Canva, Figma 等)..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-6 py-5 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all resize-none leading-relaxed"
+                                ></textarea>
+                            </div>
+
+                            {/* 事奉項目 */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-2 text-amber-400 mb-4 border-l-4 border-amber-500 pl-4">
+                                    <h2 className="text-xl font-bold tracking-widest uppercase italic">Service ｜ 願意參與的事奉項目</h2>
+                                </div>
+                                <div className="grid grid-cols-1 gap-4">
+                                    {serviceOptions.map((option, idx) => (
+                                        <div 
+                                            key={idx}
+                                            onClick={() => handleCheckbox(option)}
+                                            className={`flex items-center gap-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                                                formData.services.includes(option)
+                                                    ? 'bg-amber-500/20 border-amber-500/60 text-white shadow-[0_0_20px_rgba(245,158,11,0.1)]'
+                                                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:border-white/20'
+                                            }`}
+                                        >
+                                            <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
+                                                formData.services.includes(option) ? 'bg-amber-500 border-amber-500' : 'border-slate-600'
+                                            }`}>
+                                                {formData.services.includes(option) && <Icon name="check" className="w-4 h-4 text-slate-900" />}
+                                            </div>
+                                            <span className="font-medium text-lg">{option}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* 送出按鈕 */}
+                            <div className="pt-10">
+                                <button 
+                                    type="submit"
+                                    className="w-full group relative px-8 py-5 bg-amber-500 text-slate-950 font-black rounded-2xl overflow-hidden transition-all hover:scale-[1.01] active:scale-95 shadow-[0_10px_40px_rgba(245,158,11,0.2)]"
+                                >
+                                    <div className="absolute inset-0 bg-white/20 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
+                                    <span className="relative flex items-center justify-center gap-3 text-xl tracking-[0.3em]">
+                                        確認送出登記 <Icon name="send" className="w-5 h-5" />
+                                    </span>
+                                </button>
+                                <p className="text-center text-slate-500 text-sm mt-8 italic tracking-widest opacity-60">
+                                    「我在這裡，請差遣我。」凡有恩賜願獻上的，主必親自帶領。
+                                </p>
+                            </div>
+                        </form>
+
                         <footer className="mt-20 pt-12 border-t border-white/10 w-full text-center">
                             <div className="mb-10">
-                                <p className="text-amber-200 font-bold text-xl mb-2">宣傳公關組 組長</p>
-                                <div className="inline-flex flex-col items-center px-8 py-3 rounded-2xl bg-white/5 border border-white/5">
-                                    <p className="text-white font-medium text-lg">王鴻志</p>
-                                    <p className="text-slate-500 text-sm">大溪教會資訊股</p>
+                                <p className="text-amber-200 font-bold text-xl mb-2 tracking-widest">宣傳公關組 組長</p>
+                                <div className="inline-flex flex-col items-center px-10 py-4 rounded-3xl bg-white/5 border border-white/5 shadow-inner">
+                                    <p className="text-white font-black text-2xl tracking-wider">王鴻志</p>
+                                    <p className="text-slate-500 font-medium text-sm mt-1 uppercase tracking-widest">Daxi Church Information Section</p>
                                 </div>
                             </div>
                             
-                            <div className="flex flex-col items-center gap-6">
+                            <div className="flex flex-col items-center gap-8">
                                 <a 
                                     href="https://line.me/ti/p/~bless.true" 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="group relative inline-flex items-center gap-3 px-10 py-4 bg-transparent overflow-hidden rounded-full border border-amber-400/50 hover:border-amber-400 transition-all duration-300 shadow-[0_0_20px_rgba(251,191,36,0.1)]"
+                                    className="group relative inline-flex items-center gap-4 px-12 py-4 bg-transparent overflow-hidden rounded-full border border-amber-400/50 hover:border-amber-400 transition-all duration-300"
                                 >
                                     <div className="absolute inset-0 bg-amber-400 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                                    <span className="relative flex items-center gap-3 text-amber-400 group-hover:text-slate-900 font-bold text-lg tracking-widest transition-colors">
-                                        <Icon name="message-circle" className="w-5 h-5" /> 聯絡窗口 (Line: bless.true)
+                                    <span className="relative flex items-center gap-3 text-amber-400 group-hover:text-slate-900 font-black text-lg tracking-[0.2em] transition-colors">
+                                        <Icon name="message-circle" className="w-6 h-6" /> 聯絡窗口 ｜ LINE 聯繫
                                     </span>
                                 </a>
+                                
+                                <div className="flex items-center gap-6 text-slate-600 text-[10px] tracking-[0.5em] uppercase opacity-40 font-light">
+                                    <span>Praise</span>
+                                    <div className="w-1.5 h-1.5 bg-slate-800 rounded-full"></div>
+                                    <span>Service</span>
+                                    <div className="w-1.5 h-1.5 bg-slate-800 rounded-full"></div>
+                                    <span>Century</span>
+                                </div>
                             </div>
                             
-                            <p className="mt-16 text-slate-700 text-[10px] tracking-[0.2em] uppercase opacity-50">
+                            <p className="mt-16 text-slate-800 text-[10px] tracking-[0.3em] uppercase font-bold">
                                 © 2024 True Jesus Church West District Mission.
                             </p>
                         </footer>
