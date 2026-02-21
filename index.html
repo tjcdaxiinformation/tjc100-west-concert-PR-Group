@@ -14,6 +14,27 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase Instances
+        window.fbApp = initializeApp(JSON.parse(__firebase_config));
+        window.fbAuth = getAuth(window.fbApp);
+        window.fbDb = getFirestore(window.fbApp);
+        window.fbAddDoc = addDoc;
+        window.fbCollection = collection;
+        window.fbTimestamp = serverTimestamp;
+        window.fbSignInAnonymously = signInAnonymously;
+        window.fbSignInWithCustomToken = signInWithCustomToken;
+        window.fbOnAuthStateChanged = onAuthStateChanged;
+        window.fbAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        window.fbToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    </script>
+
     <style>
         @keyframes fade-up {
             from { opacity: 0; transform: translateY(20px); }
@@ -34,6 +55,16 @@
         ::-webkit-scrollbar-track { background: #030712; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #fbbf24; }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #fbbf24;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-navy-dark text-slate-200 font-sans selection:bg-amber-500/30">
@@ -51,8 +82,10 @@
         };
 
         const App = () => {
-            const [view, setView] = useState('form'); // 'form' 或 'success'
+            const [view, setView] = useState('form'); 
             const [isVisible, setIsVisible] = useState(false);
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [user, setUser] = useState(null);
             const [formData, setFormData] = useState({
                 name: '',
                 age: '',
@@ -62,8 +95,25 @@
                 services: []
             });
 
+            // 初始化 Firebase 認證
             useEffect(() => {
                 setIsVisible(true);
+                const initAuth = async () => {
+                    try {
+                        if (window.fbToken) {
+                            await window.fbSignInWithCustomToken(window.fbAuth, window.fbToken);
+                        } else {
+                            await window.fbSignInAnonymously(window.fbAuth);
+                        }
+                    } catch (err) {
+                        console.error("Auth error", err);
+                    }
+                };
+                initAuth();
+                const unsubscribe = window.fbOnAuthStateChanged(window.fbAuth, (u) => {
+                    setUser(u);
+                });
+                return () => unsubscribe();
             }, []);
 
             const serviceOptions = [
@@ -80,11 +130,36 @@
                 setFormData({ ...formData, services: newServices });
             };
 
-            const handleSubmit = (e) => {
+            const handleSubmit = async (e) => {
                 e.preventDefault();
-                // 模擬送出成功
-                setView('success');
-                window.scrollTo(0, 0);
+                if (!user) return;
+                
+                setIsSubmitting(true);
+                try {
+                    // 資料庫路徑規範：/artifacts/{appId}/public/data/{collectionName}
+                    const collectionRef = window.fbCollection(
+                        window.fbDb, 
+                        'artifacts', 
+                        window.fbAppId, 
+                        'public', 
+                        'data', 
+                        'registrations'
+                    );
+
+                    await window.fbAddDoc(collectionRef, {
+                        ...formData,
+                        uid: user.uid,
+                        submittedAt: window.fbTimestamp()
+                    });
+
+                    setView('success');
+                    window.scrollTo(0, 0);
+                } catch (error) {
+                    console.error("Error saving document: ", error);
+                    alert("送出失敗，請檢查網路連線或聯繫組長。");
+                } finally {
+                    setIsSubmitting(false);
+                }
             };
 
             if (view === 'success') {
@@ -97,13 +172,16 @@
                             <h2 className="text-3xl font-bold mb-4 text-amber-200 tracking-tight">哈利路亞！</h2>
                             <p className="text-slate-400 mb-8 leading-relaxed text-lg">
                                 「我在這裡，請差遣我。」<br />
-                                您的服事意願已成功送出，宣傳公關組將儘速與您聯繫。
+                                您的服事意願已成功儲存至雲端，宣傳公關組將儘速與您聯繫。
                             </p>
                             <button 
-                                onClick={() => setView('form')}
+                                onClick={() => {
+                                    setFormData({ name: '', age: '', church: '', email: '', experience: '', services: [] });
+                                    setView('form');
+                                }}
                                 className="px-8 py-3 rounded-full bg-amber-500 text-slate-900 font-bold hover:bg-amber-400 transition-all flex items-center gap-2 mx-auto"
                             >
-                                <Icon name="arrow-left" className="w-4 h-4" /> 返回修改資料
+                                <Icon name="arrow-left" className="w-4 h-4" /> 返回
                             </button>
                         </div>
                     </div>
@@ -147,7 +225,9 @@
                                         </label>
                                         <input 
                                             required type="text" placeholder="請輸入您的姓名"
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all text-white"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -156,7 +236,9 @@
                                         </label>
                                         <input 
                                             required type="number" placeholder="您的年齡"
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                            value={formData.age}
+                                            onChange={(e) => setFormData({...formData, age: e.target.value})}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all text-white"
                                         />
                                     </div>
                                 </div>
@@ -166,8 +248,10 @@
                                             <Icon name="church" className="w-4 h-4" /> 所屬教會
                                         </label>
                                         <input 
-                                            required type="text" placeholder="例如：西門教會"
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                            required type="text" placeholder="例如：大溪教會"
+                                            value={formData.church}
+                                            onChange={(e) => setFormData({...formData, church: e.target.value})}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all text-white"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -176,7 +260,9 @@
                                         </label>
                                         <input 
                                             required type="email" placeholder="example@gmail.com"
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all"
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all text-white"
                                         />
                                     </div>
                                 </div>
@@ -189,8 +275,10 @@
                                 </div>
                                 <textarea 
                                     required rows="5"
+                                    value={formData.experience}
+                                    onChange={(e) => setFormData({...formData, experience: e.target.value})}
                                     placeholder="請分享您的學經歷、曾參與過的作品，或熟悉的軟體工具 (如：PR, AE, Canva, Figma 等)..."
-                                    className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-6 py-5 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all resize-none leading-relaxed"
+                                    className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-6 py-5 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all resize-none leading-relaxed text-white"
                                 ></textarea>
                             </div>
 
@@ -225,11 +313,16 @@
                             <div className="pt-10">
                                 <button 
                                     type="submit"
-                                    className="w-full group relative px-8 py-5 bg-amber-500 text-slate-950 font-black rounded-2xl overflow-hidden transition-all hover:scale-[1.01] active:scale-95 shadow-[0_10px_40px_rgba(245,158,11,0.2)]"
+                                    disabled={isSubmitting || !user}
+                                    className="w-full group relative px-8 py-5 bg-amber-500 text-slate-950 font-black rounded-2xl overflow-hidden transition-all hover:scale-[1.01] active:scale-95 shadow-[0_10px_40px_rgba(245,158,11,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <div className="absolute inset-0 bg-white/20 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
                                     <span className="relative flex items-center justify-center gap-3 text-xl tracking-[0.3em]">
-                                        確認送出登記 <Icon name="send" className="w-5 h-5" />
+                                        {isSubmitting ? (
+                                            <span className="flex items-center gap-2">傳送中... <span className="loading-spinner"></span></span>
+                                        ) : (
+                                            <>確認送出登記 <Icon name="send" className="w-5 h-5" /></>
+                                        )}
                                     </span>
                                 </button>
                                 <p className="text-center text-slate-500 text-sm mt-8 italic tracking-widest opacity-60">
