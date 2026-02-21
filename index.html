@@ -73,14 +73,29 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // 圖示組件
+        /**
+         * 修正後的圖示組件
+         * 使用 dangerouslySetInnerHTML 來脫離 React 的 DOM 管理，
+         * 避免 Lucide 替換節點時引發的 removeChild 錯誤。
+         */
         const Icon = ({ name, className }) => {
+            const containerRef = useRef(null);
+
             useEffect(() => {
-                if (window.lucide) window.lucide.createIcons();
+                if (window.lucide && containerRef.current) {
+                    window.lucide.createIcons();
+                }
             }, [name]);
-            return <i data-lucide={name} className={className}></i>;
+
+            return (
+                <span 
+                    ref={containerRef}
+                    className={`inline-flex items-center justify-center ${className || ''}`}
+                    dangerouslySetInnerHTML={{ __html: `<i data-lucide="${name}"></i>` }}
+                />
+            );
         };
 
         const App = () => {
@@ -137,7 +152,11 @@
                             ...doc.data()
                         }));
                         // 按時間排序
-                        setRegistrations(data.sort((a, b) => b.submittedAt?.seconds - a.submittedAt?.seconds));
+                        setRegistrations(data.sort((a, b) => {
+                            const timeA = a.submittedAt?.seconds || 0;
+                            const timeB = b.submittedAt?.seconds || 0;
+                            return timeB - timeA;
+                        }));
                     }, (error) => {
                         console.error("監聽失敗", error);
                     });
@@ -302,7 +321,7 @@
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
                                                 <Icon name="user" className="w-4 h-4" /> 姓名
                                             </label>
                                             <input 
@@ -313,7 +332,7 @@
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
                                                 <Icon name="calendar" className="w-4 h-4" /> 年齡
                                             </label>
                                             <input 
@@ -326,7 +345,7 @@
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
                                                 <Icon name="church" className="w-4 h-4" /> 所屬教會
                                             </label>
                                             <input 
@@ -337,7 +356,7 @@
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2">
+                                            <label className="text-sm font-medium text-slate-400 ml-1 flex items-center gap-2 text-white">
                                                 <Icon name="mail" className="w-4 h-4" /> 電子郵件 Email
                                             </label>
                                             <input 
@@ -353,7 +372,7 @@
                                 {/* 學經歷區 */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 text-amber-400 mb-6 border-l-4 border-amber-500 pl-4">
-                                        <h2 className="text-xl font-bold tracking-widest uppercase italic">Experience ｜ 學經歷與專長</h2>
+                                        <h2 className="text-xl font-bold tracking-widest uppercase italic text-white">Experience ｜ 學經歷與專長</h2>
                                     </div>
                                     <textarea 
                                         required rows="5"
@@ -367,7 +386,7 @@
                                 {/* 事奉項目 */}
                                 <div className="space-y-6">
                                     <div className="flex items-center gap-2 text-amber-400 mb-4 border-l-4 border-amber-500 pl-4">
-                                        <h2 className="text-xl font-bold tracking-widest uppercase italic">Service ｜ 願意參與的事奉項目</h2>
+                                        <h2 className="text-xl font-bold tracking-widest uppercase italic text-white">Service ｜ 願意參與的事奉項目</h2>
                                     </div>
                                     <div className="grid grid-cols-1 gap-4">
                                         {serviceOptions.map((option, idx) => (
@@ -385,7 +404,7 @@
                                                 }`}>
                                                     {formData.services.includes(option) && <Icon name="check" className="w-4 h-4 text-slate-900" />}
                                                 </div>
-                                                <span className="font-medium text-lg">{option}</span>
+                                                <span className="font-medium text-lg text-white">{option}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -399,11 +418,11 @@
                                         className="w-full group relative px-8 py-5 bg-amber-500 text-slate-950 font-black rounded-2xl overflow-hidden transition-all hover:scale-[1.01] active:scale-95 shadow-[0_10px_40px_rgba(245,158,11,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <div className="absolute inset-0 bg-white/20 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
-                                        <span className="relative flex items-center justify-center gap-3 text-xl tracking-[0.3em]">
+                                        <span className="relative flex items-center justify-center gap-3 text-xl tracking-[0.3em] text-slate-900">
                                             {isSubmitting ? (
-                                                <span className="flex items-center gap-2">傳送中... <span className="loading-spinner"></span></span>
+                                                <span className="flex items-center gap-2 text-slate-900">傳送中... <span className="loading-spinner"></span></span>
                                             ) : (
-                                                <>確認送出登記 <Icon name="send" className="w-5 h-5" /></>
+                                                <span className="flex items-center gap-2 text-slate-900">確認送出登記 <Icon name="send" className="w-5 h-5 text-slate-900" /></span>
                                             )}
                                         </span>
                                     </button>
@@ -414,10 +433,10 @@
 
                     <footer className="mt-20 pt-12 border-t border-white/10 w-full text-center">
                         <div className="mb-10">
-                            <p className="text-amber-200 font-bold text-xl mb-2 tracking-widest">宣傳公關組 組長</p>
+                            <p className="text-amber-200 font-bold text-xl mb-2 tracking-widest text-center">宣傳公關組 組長</p>
                             <div className="inline-flex flex-col items-center px-10 py-4 rounded-3xl bg-white/5 border border-white/5 shadow-inner">
-                                <p className="text-white font-black text-2xl tracking-wider">王鴻志</p>
-                                <p className="text-slate-500 font-medium text-sm mt-1 uppercase tracking-widest">Daxi Church Information Section</p>
+                                <p className="text-white font-black text-2xl tracking-wider text-center">王鴻志</p>
+                                <p className="text-slate-500 font-medium text-sm mt-1 uppercase tracking-widest text-center">Daxi Church Information Section</p>
                             </div>
                         </div>
                         
@@ -434,7 +453,7 @@
                                 </span>
                             </a>
                             
-                            <div className="flex items-center gap-6 text-slate-600 text-[10px] tracking-[0.5em] uppercase opacity-40 font-light">
+                            <div className="flex items-center gap-6 text-slate-600 text-[10px] tracking-[0.5em] uppercase opacity-40 font-light text-center">
                                 <span>Praise</span>
                                 <div className="w-1.5 h-1.5 bg-slate-800 rounded-full"></div>
                                 <span>Service</span>
@@ -444,7 +463,7 @@
                         </div>
                         
                         <div className="mt-16 flex flex-col items-center gap-2">
-                            <p className="text-slate-800 text-[10px] tracking-[0.3em] uppercase font-bold">
+                            <p className="text-slate-800 text-[10px] tracking-[0.3em] uppercase font-bold text-center">
                                 © 2024 True Jesus Church West District Mission.
                             </p>
                             {/* 管理後台隱藏按鈕 */}
